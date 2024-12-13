@@ -1,87 +1,94 @@
 version: '3.8'
 
 services:
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-microdevops}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - "3000:3000"
+    depends_on:
+      - auth-service
+      - project-service
+      - task-service
+      - user-service
+    environment:
+      - REACT_APP_AUTH_SERVICE_URL=http://auth-service:4000
+      - REACT_APP_PROJECT_SERVICE_URL=http://project-service:4001
+      - REACT_APP_TASK_SERVICE_URL=http://task-service:4002
+      - REACT_APP_USER_SERVICE_URL=http://user-service:4003
 
   auth-service:
     build:
       context: ./backend/services/auth-service
       dockerfile: Dockerfile
-    environment:
-      NODE_ENV: development
-      PORT: 3001
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-microdevops}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_here}
     ports:
-      - "3001:3001"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./backend/services/auth-service:/usr/src/app
-      - /usr/src/app/node_modules
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=authdb
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
 
   project-service:
     build:
       context: ./backend/services/project-service
       dockerfile: Dockerfile
-    environment:
-      NODE_ENV: development
-      PORT: 3002
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-microdevops}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_here}
     ports:
-      - "3002:3002"
-    depends_on:
-      postgres:
-        condition: service_healthy
-    volumes:
-      - ./backend/services/project-service:/usr/src/app
-      - /usr/src/app/node_modules
+      - "4001:4001"
+    environment:
+      - NODE_ENV=development
+      - PORT=4001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=projectdb
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
 
   task-service:
     build:
       context: ./backend/services/task-service
       dockerfile: Dockerfile
-    environment:
-      NODE_ENV: development
-      PORT: 3003
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: ${POSTGRES_DB:-microdevops}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_here}
     ports:
-      - "3003:3003"
-    depends_on:
-      postgres:
-        condition: service_healthy
+      - "4002:4002"
+    environment:
+      - NODE_ENV=development
+      - PORT=4002
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=taskdb
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+
+  user-service:
+    build:
+      context: ./backend/services/user-service
+      dockerfile: Dockerfile
+    ports:
+      - "4003:4003"
+    environment:
+      - NODE_ENV=development
+      - PORT=4003
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=userdb
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+
+  postgres:
+    image: postgres:14-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_MULTIPLE_DATABASES=authdb,projectdb,taskdb,userdb
     volumes:
-      - ./backend/services/task-service:/usr/src/app
-      - /usr/src/app/node_modules
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
 
 volumes:
   postgres_data:
