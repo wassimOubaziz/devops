@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-microdevops}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  auth-service:
+    build:
+      context: ./backend/services/auth-service
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-microdevops}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_here}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/services/auth-service:/usr/src/app
+      - /usr/src/app/node_modules
+
+  project-service:
+    build:
+      context: ./backend/services/project-service
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3002
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-microdevops}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_here}
+    ports:
+      - "3002:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/services/project-service:/usr/src/app
+      - /usr/src/app/node_modules
+
+  task-service:
+    build:
+      context: ./backend/services/task-service
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: development
+      PORT: 3003
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-microdevops}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-your_jwt_secret_here}
+    ports:
+      - "3003:3003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/services/task-service:/usr/src/app
+      - /usr/src/app/node_modules
+
+volumes:
+  postgres_data:
