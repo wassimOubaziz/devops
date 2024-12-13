@@ -1,22 +1,15 @@
 FROM node:18-alpine
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
 
-# Install dependencies
 RUN npm install
 
-# Copy source code
 COPY . .
 
-# Expose port
-EXPOSE 3003
+RUN npm run build
 
-# Wait for PostgreSQL script
-COPY wait-for-postgres.sh /wait-for-postgres.sh
-RUN chmod +x /wait-for-postgres.sh
+EXPOSE 3000
 
-# Start command
-CMD ["/wait-for-postgres.sh", "npm", "start"]
+CMD ["npm", "start"]
