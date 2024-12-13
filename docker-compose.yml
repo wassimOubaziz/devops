@@ -13,55 +13,84 @@ services:
       - task-service
       - user-service
     environment:
-      - REACT_APP_AUTH_SERVICE_URL=http://auth-service:4000
-      - REACT_APP_PROJECT_SERVICE_URL=http://project-service:4001
-      - REACT_APP_TASK_SERVICE_URL=http://task-service:4002
+      - REACT_APP_AUTH_SERVICE_URL=http://auth-service:3001
+      - REACT_APP_PROJECT_SERVICE_URL=http://project-service:3002
+      - REACT_APP_TASK_SERVICE_URL=http://task-service:3003
       - REACT_APP_USER_SERVICE_URL=http://user-service:4003
+    networks:
+      - app-network
 
   auth-service:
     build:
       context: ./backend/services/auth-service
       dockerfile: Dockerfile
     ports:
-      - "4000:4000"
+      - "3001:3001"
+    depends_on:
+      - postgres
     environment:
       - NODE_ENV=development
-      - PORT=4000
+      - PORT=3001
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=authdb
       - DB_USER=postgres
       - DB_PASSWORD=postgres
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   project-service:
     build:
       context: ./backend/services/project-service
       dockerfile: Dockerfile
     ports:
-      - "4001:4001"
+      - "3002:3002"
+    depends_on:
+      - postgres
     environment:
       - NODE_ENV=development
-      - PORT=4001
+      - PORT=3002
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=projectdb
       - DB_USER=postgres
       - DB_PASSWORD=postgres
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   task-service:
     build:
       context: ./backend/services/task-service
       dockerfile: Dockerfile
     ports:
-      - "4002:4002"
+      - "3003:3003"
+    depends_on:
+      - postgres
     environment:
       - NODE_ENV=development
-      - PORT=4002
+      - PORT=3003
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_NAME=taskdb
       - DB_USER=postgres
       - DB_PASSWORD=postgres
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   user-service:
     build:
@@ -69,6 +98,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "4003:4003"
+    depends_on:
+      - postgres
     environment:
       - NODE_ENV=development
       - PORT=4003
@@ -77,6 +108,13 @@ services:
       - DB_NAME=userdb
       - DB_USER=postgres
       - DB_PASSWORD=postgres
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   postgres:
     image: postgres:14-alpine
@@ -88,7 +126,18 @@ services:
       - POSTGRES_MULTIPLE_DATABASES=authdb,projectdb,taskdb,userdb
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   postgres_data:
