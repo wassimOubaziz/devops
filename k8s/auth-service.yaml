@@ -1,10 +1,43 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth-service
-  namespace: microdevops
+  name: frontend-deployment
 spec:
-  replicas: 2
+  replicas: 3  # Number of replicas for high availability
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+      - name: frontend
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:frontend-${BUILD_NUMBER}  # Change to ECR image
+        ports:
+        - containerPort: 80  # Adjust the port if necessary
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend-service
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer  # Expose the service to the internet
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service-deployment
+spec:
+  replicas: 3
   selector:
     matchLabels:
       app: auth-service
@@ -15,50 +48,90 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/microdevops-auth-service:latest
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:auth-service-${BUILD_NUMBER}  # Change to ECR image
         ports:
-        - containerPort: 3001
-        env:
-        - name: MONGODB_URI
-          valueFrom:
-            secretKeyRef:
-              name: auth-service-secrets
-              key: mongodb-uri
-        - name: JWT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: auth-service-secrets
-              key: jwt-secret
-        resources:
-          requests:
-            memory: "256Mi"
-            cpu: "250m"
-          limits:
-            memory: "512Mi"
-            cpu: "500m"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 3001
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 3001
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - containerPort: 8081  # Adjust the port if necessary
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: auth-service
-  namespace: microdevops
 spec:
   selector:
     app: auth-service
   ports:
     - protocol: TCP
-      port: 80
-      targetPort: 3001
+      port: 8081
+      targetPort: 8081
+  type: ClusterIP  # Service within the cluster, no external exposure
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-service-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: project-service
+  template:
+    metadata:
+      labels:
+        app: project-service
+    spec:
+      containers:
+      - name: project-service
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:project-service-${BUILD_NUMBER}  # Change to ECR image
+        ports:
+        - containerPort: 8082  # Adjust the port if necessary
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-service
+spec:
+  selector:
+    app: project-service
+  ports:
+    - protocol: TCP
+      port: 8082
+      targetPort: 8082
+  type: ClusterIP
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: task-service-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: task-service
+  template:
+    metadata:
+      labels:
+        app: task-service
+    spec:
+      containers:
+      - name: task-service
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:task-service-${BUILD_NUMBER}  # Change to ECR image
+        ports:
+        - containerPort: 8083  # Adjust the port if necessary
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: task-service
+spec:
+  selector:
+    app: task-service
+  ports:
+    - protocol: TCP
+      port: 8083
+      targetPort: 8083
   type: ClusterIP
