@@ -6,7 +6,8 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm install
+RUN npm install --legacy-peer-deps --force && \
+    npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -18,5 +19,5 @@ EXPOSE 3001
 COPY wait-for-postgres.sh /wait-for-postgres.sh
 RUN chmod +x /wait-for-postgres.sh
 
-# Start command
-CMD ["/wait-for-postgres.sh", "npm", "start"]
+# Start command with wait-for-postgres
+CMD ["/bin/sh", "-c", "/wait-for-postgres.sh && npm start"]
