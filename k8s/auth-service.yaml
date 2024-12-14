@@ -1,9 +1,11 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: frontend-deployment
+  name: frontend
+  labels:
+    app: frontend
 spec:
-  replicas: 3  # Number of replicas for high availability
+  replicas: 3
   selector:
     matchLabels:
       app: frontend
@@ -14,28 +16,47 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:frontend-${BUILD_NUMBER}  # Change to ECR image
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/frontend:${BUILD_VERSION}
         ports:
-        - containerPort: 80  # Adjust the port if necessary
+        - containerPort: 3000
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:3001"
+        - name: PROJECT_SERVICE_URL
+          value: "http://project-service:3002"
+        - name: TASK_SERVICE_URL
+          value: "http://task-service:3003"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: frontend-service
+  name: frontend
 spec:
   selector:
     app: frontend
   ports:
     - protocol: TCP
       port: 80
-      targetPort: 80
-  type: LoadBalancer  # Expose the service to the internet
+      targetPort: 3000
+  type: LoadBalancer
+
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: auth-service-deployment
+  name: auth-service
+  labels:
+    app: auth-service
 spec:
   replicas: 3
   selector:
@@ -48,9 +69,34 @@ spec:
     spec:
       containers:
       - name: auth-service
-        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:auth-service-${BUILD_NUMBER}  # Change to ECR image
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/auth-service:${BUILD_VERSION}
         ports:
-        - containerPort: 8081  # Adjust the port if necessary
+        - containerPort: 3001
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: host
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: password
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
 
 ---
 apiVersion: v1
@@ -62,15 +108,17 @@ spec:
     app: auth-service
   ports:
     - protocol: TCP
-      port: 8081
-      targetPort: 8081
-  type: ClusterIP  # Service within the cluster, no external exposure
+      port: 3001
+      targetPort: 3001
+  type: ClusterIP
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: project-service-deployment
+  name: project-service
+  labels:
+    app: project-service
 spec:
   replicas: 3
   selector:
@@ -83,9 +131,36 @@ spec:
     spec:
       containers:
       - name: project-service
-        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:project-service-${BUILD_NUMBER}  # Change to ECR image
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/project-service:${BUILD_VERSION}
         ports:
-        - containerPort: 8082  # Adjust the port if necessary
+        - containerPort: 3002
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: host
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: password
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:3001"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
 
 ---
 apiVersion: v1
@@ -97,15 +172,17 @@ spec:
     app: project-service
   ports:
     - protocol: TCP
-      port: 8082
-      targetPort: 8082
+      port: 3002
+      targetPort: 3002
   type: ClusterIP
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: task-service-deployment
+  name: task-service
+  labels:
+    app: task-service
 spec:
   replicas: 3
   selector:
@@ -118,9 +195,38 @@ spec:
     spec:
       containers:
       - name: task-service
-        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}:task-service-${BUILD_NUMBER}  # Change to ECR image
+        image: ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/task-service:${BUILD_VERSION}
         ports:
-        - containerPort: 8083  # Adjust the port if necessary
+        - containerPort: 3003
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: host
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: password
+        - name: AUTH_SERVICE_URL
+          value: "http://auth-service:3001"
+        - name: PROJECT_SERVICE_URL
+          value: "http://project-service:3002"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
 
 ---
 apiVersion: v1
@@ -132,6 +238,6 @@ spec:
     app: task-service
   ports:
     - protocol: TCP
-      port: 8083
-      targetPort: 8083
+      port: 3003
+      targetPort: 3003
   type: ClusterIP
